@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,9 +22,14 @@ public class ProductServiceImpl implements ProductService {
     private static final int LOW_STOCK_THRESHOLD = 5;
 
     private final ProductRepository productRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    public ProductServiceImpl(ProductRepository productRepository) {
+    public ProductServiceImpl(
+            ProductRepository productRepository,
+            JdbcTemplate jdbcTemplate) {
+
         this.productRepository = productRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -105,6 +111,21 @@ public class ProductServiceImpl implements ProductService {
                 .stream()
                 .map(this::convertToDTO)
                 .toList();
+    }
+
+    // Get the next AUTO_INCREMENT value from MySQL
+    @Override
+    @Transactional(readOnly = true)
+    public Integer getNextProductId() {
+
+        String sql = """
+                SELECT AUTO_INCREMENT
+                FROM information_schema.TABLES
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'Products'
+                """;
+
+        return jdbcTemplate.queryForObject(sql, Integer.class);
     }
 
     private ProductDTO convertToDTO(Product product) {
